@@ -29,6 +29,10 @@ class Config:
         self.big_model = os.environ.get("BIG_MODEL", "gpt-4o")
         self.middle_model = os.environ.get("MIDDLE_MODEL", self.big_model)
         self.small_model = os.environ.get("SMALL_MODEL", "gpt-4o-mini")
+
+    @property
+    def max_tokens_uncapped(self) -> bool:
+        return self.max_tokens_limit <= 0
         
     def validate_api_key(self):
         """Basic API key validation"""

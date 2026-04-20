@@ -219,7 +219,8 @@ async def root():
         "status": "running",
         "config": {
             "openai_base_url": config.openai_base_url,
-            "max_tokens_limit": config.max_tokens_limit,
+            "max_tokens_limit": None if config.max_tokens_uncapped else config.max_tokens_limit,
+            "max_tokens_uncapped": config.max_tokens_uncapped,
             "api_key_configured": bool(config.openai_api_key),
             "client_api_key_validation": bool(config.anthropic_api_key),
             "big_model": config.big_model,

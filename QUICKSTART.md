@@ -1,82 +1,54 @@
 # Quick Start Guide
 
-## 🚀 Get Started in 3 Steps
+## Localhost setup for Claude Code
 
-### Step 1: Install Dependencies
-```bash
-# Using UV (recommended)
-uv sync
+This repo is preconfigured to proxy Claude Code to:
 
-# Or using pip
-pip install -r requirements.txt
-```
+- `OPENAI_BASE_URL=https://ai.hackclub.com/proxy/v1`
+- `BIG_MODEL=z-ai/glm-5`
+- `MIDDLE_MODEL=z-ai/glm-5`
+- `SMALL_MODEL=morph/morph-v3-large`
 
-### Step 2: Configure Your Provider
-
-Choose your LLM provider and configure accordingly:
-
-#### OpenAI
-```bash
-cp .env.example .env
-# Edit .env:
-# OPENAI_API_KEY="sk-your-openai-key"
-# BIG_MODEL="gpt-4o"
-# SMALL_MODEL="gpt-4o-mini"
-```
-
-#### Azure OpenAI
-```bash
-cp .env.example .env
-# Edit .env:
-# OPENAI_API_KEY="your-azure-key"
-# OPENAI_BASE_URL="https://your-resource.openai.azure.com/openai/deployments/your-deployment"
-# BIG_MODEL="gpt-4"
-# SMALL_MODEL="gpt-35-turbo"
-```
-
-#### Local Models (Ollama)
-```bash
-cp .env.example .env
-# Edit .env:
-# OPENAI_API_KEY="dummy-key"
-# OPENAI_BASE_URL="http://localhost:11434/v1"
-# BIG_MODEL="llama3.1:70b"
-# SMALL_MODEL="llama3.1:8b"
-```
-
-### Step 3: Start and Use
+### 1. Create the virtualenv and install dependencies
 
 ```bash
-# Start the proxy server
-python start_proxy.py
-
-# In another terminal, use with Claude Code
-ANTHROPIC_BASE_URL=http://localhost:8082 claude
+UV_CACHE_DIR=/tmp/uv-cache uv venv .venv
+UV_CACHE_DIR=/tmp/uv-cache uv sync
 ```
 
-## 🎯 How It Works
+### 2. Start the proxy on localhost
 
-| Your Input | Proxy Action | Result |
-|-----------|--------------|--------|
-| Claude Code sends `claude-3-5-sonnet-20241022` | Maps to your `BIG_MODEL` | Uses `gpt-4o` (or whatever you configured) |
-| Claude Code sends `claude-3-5-haiku-20241022` | Maps to your `SMALL_MODEL` | Uses `gpt-4o-mini` (or whatever you configured) |
-
-## 📋 What You Need
-
-- Python 3.9+
-- API key for your chosen provider
-- Claude Code CLI installed
-- 2 minutes to configure
-
-## 🔧 Default Settings
-- Server runs on `http://localhost:8082`
-- Maps haiku → SMALL_MODEL, sonnet/opus → BIG_MODEL
-- Supports streaming, function calling, images
-
-## 🧪 Test Your Setup
 ```bash
-# Quick test
-python src/test_claude_to_openai.py
+./run-local.sh
 ```
 
-That's it! Now Claude Code can use any OpenAI-compatible provider! 🎉
+The proxy listens on `http://127.0.0.1:8082`.
+
+### 3. Point Claude Code at the proxy
+
+In another terminal:
+
+```bash
+ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_API_KEY=dummy claude
+```
+
+### 4. Optional health checks
+
+```bash
+curl http://127.0.0.1:8082/health
+curl http://127.0.0.1:8082/test-connection
+```
+
+## Model mapping
+
+| Claude request | Backend model |
+| --- | --- |
+| haiku | `morph/morph-v3-large` |
+| sonnet | `z-ai/glm-5` |
+| opus | `z-ai/glm-5` |
+
+## Compatibility note
+
+The configured `sonnet` and `opus` backend (`z-ai/glm-5`) supports OpenAI-style tool calls and is suitable for Claude Code workflows.
+
+The configured `haiku` backend (`morph/morph-v3-large`) is accepted by the provider for normal chat completions, but the provider metadata and a live tool-call test both indicate that tool use is not available for that model. If Claude Code routes a tool-heavy workflow through haiku, it may fail until you switch `SMALL_MODEL` to a tool-capable model.

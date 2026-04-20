@@ -74,13 +74,16 @@ def convert_claude_to_openai(
         i += 1
 
     # Build OpenAI request
+    requested_max_tokens = max(claude_request.max_tokens, config.min_tokens_limit)
+    if config.max_tokens_uncapped:
+        effective_max_tokens = requested_max_tokens
+    else:
+        effective_max_tokens = min(requested_max_tokens, config.max_tokens_limit)
+
     openai_request = {
         "model": openai_model,
         "messages": openai_messages,
-        "max_tokens": min(
-            max(claude_request.max_tokens, config.min_tokens_limit),
-            config.max_tokens_limit,
-        ),
+        "max_tokens": effective_max_tokens,
         "temperature": claude_request.temperature,
         "stream": claude_request.stream,
     }
@@ -92,6 +95,21 @@ def convert_claude_to_openai(
         openai_request["stop"] = claude_request.stop_sequences
     if claude_request.top_p is not None:
         openai_request["top_p"] = claude_request.top_p
+
+    # Add extra body params for OpenRouter - enables usage stats + prompt caching
+    # Use session_id if provided, otherwise use a default key
+    if claude_request.extra_body:
+        openai_request["extra_body"] = claude_request.extra_body
+    else:
+        session_key = (
+            claude_request.session_id
+            if claude_request.session_id
+            else "claude-code-session"
+        )
+        openai_request["extra_body"] = {
+            "stream_options": {"include_usage": True},
+            "prompt_cache_key": session_key,
+        }
 
     # Convert tools
     if claude_request.tools:
@@ -133,7 +151,7 @@ def convert_claude_user_message(msg: ClaudeMessage) -> Dict[str, Any]:
     """Convert Claude user message to OpenAI format."""
     if msg.content is None:
         return {"role": Constants.ROLE_USER, "content": ""}
-    
+
     if isinstance(msg.content, str):
         return {"role": Constants.ROLE_USER, "content": msg.content}
 
@@ -172,7 +190,7 @@ def convert_claude_assistant_message(msg: ClaudeMessage) -> Dict[str, Any]:
 
     if msg.content is None:
         return {"role": Constants.ROLE_ASSISTANT, "content": None}
-    
+
     if isinstance(msg.content, str):
         return {"role": Constants.ROLE_ASSISTANT, "content": msg.content}
 
@@ -190,6 +208,7 @@ def convert_claude_assistant_message(msg: ClaudeMessage) -> Dict[str, Any]:
                     },
                 }
             )
+        # Skip reasoning blocks - they're text content from GLM models
 
     openai_message = {"role": Constants.ROLE_ASSISTANT}
 
